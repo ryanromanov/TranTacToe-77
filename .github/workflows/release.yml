@@ -2,6 +2,8 @@ name: Release
 
 # Pushing a tag vX.Y.Z publishes a GitHub Release with prebuilt binaries
 # of both difficulty-3 editions (tictac77-rules, tictac77-minimax).
+# If notes/vX.Y.Z.md exists, it heads the release notes, followed by the
+# notes GitHub generates from merged PRs.
 # Pull requests that touch this file run everything except the publish step.
 on:
   push:
@@ -48,8 +50,30 @@ jobs:
           fi
 
       - name: Build release binaries
+        run: make LDFLAGS="${{ matrix.ldflags }}"
+
+      # Play complete games with each binary exactly as it will ship
+      - name: Smoke-test release binaries
         run: |
-          make LDFLAGS="${{ matrix.ldflags }}"
+          version="$(sed -n "s/.*PARAMETER (VERS = '\([0-9.]*\)').*/\1/p" tictac.f)"
+          moves="$(for i in 1 2 3; do for r in 1 2 3; do for c in 1 2 3; do
+            echo "$r $c"; done; done; done)"
+          for bin in tictac77-rules tictac77-minimax; do
+            for diff in 1 2 3; do
+              for first in 1 2; do
+                out="$(printf '7\n%s\n%s\n%s\n' "$diff" "$first" "$moves" | "./$bin")"
+                if ! grep -qF "Tic-Tac-Tran! (v$version)" <<< "$out" ||
+                   ! grep -qE "beaten the computer|been beaten by|mortal man" <<< "$out"; then
+                  echo "::error::$bin, difficulty $diff, first $first: no banner or no ending"
+                  echo "$out"
+                  exit 1
+                fi
+              done
+            done
+          done
+
+      - name: Package release binaries
+        run: |
           tar -czf ${{ matrix.asset }}.tar.gz \
             tictac77-rules tictac77-minimax README.md
 
@@ -65,6 +89,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -74,8 +100,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          notes=""
+          if [ -f "notes/$GITHUB_REF_NAME.md" ]; then
+            notes="$(cat "notes/$GITHUB_REF_NAME.md")"
+          fi
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
+            --notes "$notes" \
             --generate-notes \
             --verify-tag
