@@ -149,6 +149,7 @@ C ----------------------------------------------------------------------
 C       A FORMAT, NOT LIST-DIRECTED: F77 WANTS QUOTES ROUND 'yes' THERE
         READ (*, '(A)', IOSTAT=IOS) RET
         IF (IOS .LT. 0) CALL ENDINP
+        CALL LOWER(RET)
         IF (RET .EQ. 'yes') THEN
           CALL OAP
           RETURN
@@ -160,6 +161,22 @@ C       A FORMAT, NOT LIST-DIRECTED: F77 WANTS QUOTES ROUND 'yes' THERE
       END IF
       CALL RDPAIR(TX, TY)
       GOTO 10
+      END
+
+C ----------------------------------------------------------------------
+C     LOWER: CONVERT S TO LOWER CASE.  F77 DOES NOT PROMISE ASCII, SO
+C     LETTERS ARE LOOKED UP WITH INDEX INSTEAD OF SHIFTED WITH ICHAR.
+C ----------------------------------------------------------------------
+      SUBROUTINE LOWER(S)
+      CHARACTER*(*) S
+      CHARACTER*26 UC, LC
+      INTEGER I, K
+      PARAMETER (UC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+      PARAMETER (LC = 'abcdefghijklmnopqrstuvwxyz')
+      DO 10 I = 1, LEN(S)
+        K = INDEX(UC, S(I:I))
+        IF (K .GT. 0) S(I:I) = LC(K:K)
+   10 CONTINUE
       END
 
 C ----------------------------------------------------------------------

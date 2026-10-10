@@ -141,6 +141,12 @@ class Input(unittest.TestCase):
         self.assertEqual(outcome, "quit")
         self.assertEqual(last_board(out)[0][0], "X")
 
+    def test_retire_answer_ignores_case(self):
+        for answer in ("YES", "Yes", "yEs"):
+            with self.subTest(answer=answer):
+                outcome, _ = play(1, RETIRE, answer + "\n")
+                self.assertEqual(outcome, "quit")
+
     def test_letters_at_seed_prompt(self):
         p = run("lucky\n7\n1\n1\n0 0\nyes\n")
         self.assertEqual(p.stdout.count("please enter a whole number"), 1)
