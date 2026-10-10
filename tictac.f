@@ -19,8 +19,8 @@ C     THE BOARD IS B(ROW,COL), EMPTY CELLS ARE '_'.  THE USER IS 'X',
 C     THE COMPUTER IS 'O'.  VICTOR: 0 NONE, 1 USER, 2 COMPUTER, 3 TIE.
 C ======================================================================
       PROGRAM TICTAC
-      CHARACTER*5 VERS
-      PARAMETER (VERS = '0.2.0')
+      CHARACTER*(*) VERS
+      PARAMETER (VERS = '1.0.0')
       CHARACTER*1 BOARD(3,3)
       CHARACTER*3 RETIRE
       INTEGER X, Y, VICTOR, NTURN, DIFF
