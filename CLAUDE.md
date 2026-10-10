@@ -14,7 +14,7 @@ python3 test_game.py                   # or: make test
 python3 test_game.py Input.test_declining_retire_resumes_game
 ```
 
-The tests feed stdin in this order: lucky number, difficulty, then moves as `row col` (`0 0` + `yes` retires).
+The tests feed stdin in this order: lucky number, difficulty, who moves first (1 user, 2 computer), then moves as `row col` (`0 0` + `yes`, in any case, retires). `VCHECK` runs after every move, since with the computer starting, O can win before the user's third move.
 
 They fail on:
 - code past column 72
@@ -38,6 +38,8 @@ Difficulty 3 is exhaustively checked for both editions. CI sets `REQUIRE_FTNCHEK
 - **Names:** at most 6 characters, no underscores.
 - **Not allowed:** `IMPLICIT NONE`, `::`, `DO WHILE`/`END DO`, `!` comments, `"..."` strings (double apostrophes inside `'...'` instead), initialization in declarations (use `DATA`), recursion.
 - **Functions:** no side effects. Helpers that modify the board are SUBROUTINEs (ftnchek checks this).
-- **COMMON:** a block that must keep its values needs `SAVE /NAME/` in every unit that names it, or it becomes undefined on RETURN. ftnchek doesn't catch this.
+- **COMMON:** a block that must keep its values needs `SAVE /NAME/` in every unit that names it, or it becomes undefined on RETURN. ftnchek doesn't catch this; `test_common_blocks_are_saved` does.
+- **Output:** every printed line must fit in 80 columns (`Output.test_fits_80_columns`). A new message must also be added to its `MESSAGES` list.
+- **Lower-casing:** use `LOWER`, which looks letters up with `INDEX`; F77 doesn't promise ASCII, so don't shift with `ICHAR`.
 - **Reading text:** use a format (`READ (*,'(A)')`). F77 list-directed input wants quotes round character values.
 - **Randomness and versions:** no clock and no command line. The RNG is seeded from the player's lucky number, and the version (`VERS`) appears only in the banner.

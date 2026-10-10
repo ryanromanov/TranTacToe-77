@@ -20,7 +20,7 @@ C     THE COMPUTER IS 'O'.  VICTOR: 0 NONE, 1 USER, 2 COMPUTER, 3 TIE.
 C ======================================================================
       PROGRAM TICTAC
       CHARACTER*(*) VERS
-      PARAMETER (VERS = '1.0.0')
+      PARAMETER (VERS = '1.1.0')
       CHARACTER*1 BOARD(3,3)
       CHARACTER*3 RETIRE
       INTEGER X, Y, VICTOR, DIFF, FIRST
