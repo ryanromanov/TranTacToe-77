@@ -1,4 +1,4 @@
-"""End-to-end tests for Tic-Tak-Tran, FORTRAN 77 edition.
+"""End-to-end tests for Tic-Tac-Tran, FORTRAN 77 edition.
 
 Adapted from TranTacToe's tests/test_game.py. The game is built twice, once with each
 difficulty-3 AI (ai3rul.f: rule-based, ai3mmx.f: explicit-stack minimax),
@@ -125,7 +125,7 @@ class Version(unittest.TestCase):
             version = re.search(r"PARAMETER \(VERS = '([0-9.]+)'\)",
                                 f.read()).group(1)
         _, out = play(1, RETIRE, "yes\n")
-        self.assertIn(f"Welcome to Tic-Tak-Tran! (v{version})", out)
+        self.assertIn(f"Welcome to Tic-Tac-Tran! (v{version})", out)
 
 
 class Input(unittest.TestCase):
