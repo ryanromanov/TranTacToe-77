@@ -1,0 +1,4 @@
+tictac77-rules
+tictac77-minimax
+*.o
+__pycache__/

@@ -1,10 +1,11 @@
-"""End-to-end tests for the FORTRAN 77 edition (f77/tictac.f).
+"""End-to-end tests for Tic-Tak-Tran, FORTRAN 77 edition.
 
-Adapted from tests/test_game.py. The game is built twice, once with each
+Adapted from TranTacToe's tests/test_game.py. The game is built twice, once with each
 difficulty-3 AI (ai3rul.f: rule-based, ai3mmx.f: explicit-stack minimax),
 then driven over stdin: lucky number, difficulty, then moves as `row col`.
 
-Run with: python3 f77/test_game.py
+Run with: python3 test_game.py   (or: make test)
+Set REQUIRE_FTNCHEK=1 to fail, not skip, when ftnchek is missing.
 """
 import os
 import re
@@ -100,7 +101,9 @@ class SourceFormat(unittest.TestCase):
             with open(src) as f:
                 self.assertNotIn("\t", f.read(), src)
 
-    @unittest.skipUnless(shutil.which("ftnchek"), "ftnchek not installed")
+    @unittest.skipUnless(shutil.which("ftnchek")
+                         or os.environ.get("REQUIRE_FTNCHEK"),
+                         "ftnchek not installed")
     def test_ftnchek_clean(self):
         # Flags every non-F77 extension, names over six characters,
         # portability problems and undeclared variables.
