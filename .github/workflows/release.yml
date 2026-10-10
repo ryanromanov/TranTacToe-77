@@ -75,7 +75,7 @@ jobs:
       - name: Package release binaries
         run: |
           tar -czf ${{ matrix.asset }}.tar.gz \
-            tictac77-rules tictac77-minimax README.md
+            tictac77-rules tictac77-minimax README.md LICENSE
 
       - uses: actions/upload-artifact@v4
         with:

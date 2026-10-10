@@ -61,3 +61,7 @@ Where standard F77 leaves things up to the compiler:
 3. Merge, then tag that commit: `git tag v1.2.0 && git push origin v1.2.0`.
 
 The release workflow checks that the tag matches `VERS`, builds both binaries for Linux and macOS, plays complete games with each, and publishes the release.
+
+## License
+
+[MIT](LICENSE) © 2017–2026 Ryan Romanosky
