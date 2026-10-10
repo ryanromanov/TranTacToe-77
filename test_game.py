@@ -86,6 +86,28 @@ def last_board(out):
     return [[cell.strip() for cell in row.split("|")[1:4]] for row in rows]
 
 
+def program_units(src):
+    """Split fixed-form source into (first line, statements) per unit.
+
+    Comments are dropped and continuation lines joined, so each statement
+    is one line with its label and indentation stripped.
+    """
+    units, stmts = [], []
+    with open(src) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line.strip() or line[:1] in "cC*":
+                continue
+            if len(line) > 5 and line[5] not in " 0":
+                stmts[-1] += line[6:72].strip()
+                continue
+            stmts.append(line[6:72].strip())
+            if stmts[-1] == "END":
+                units.append((stmts[0], "\n".join(stmts)))
+                stmts = []
+    return units
+
+
 class SourceFormat(unittest.TestCase):
     def test_no_code_past_column_72(self):
         # Fixed-form Fortran silently drops anything past column 72.
@@ -102,6 +124,19 @@ class SourceFormat(unittest.TestCase):
         for src in SOURCES:
             with open(src) as f:
                 self.assertNotIn("\t", f.read(), src)
+
+    def test_common_blocks_are_saved(self):
+        # Without SAVE, F77 lets a COMMON block become undefined on RETURN
+        # unless a unit higher in the call chain also names it. ftnchek
+        # doesn't check this, so every unit naming a block must SAVE it.
+        for src in SOURCES:
+            for name, unit in program_units(src):
+                blocks = set(re.findall(r"\bCOMMON\s*/\s*(\w+)\s*/", unit))
+                if re.search(r"^SAVE\s*$", unit, re.M):
+                    continue  # a bare SAVE saves everything
+                saved = set(re.findall(r"^SAVE\s*/\s*(\w+)\s*/", unit, re.M))
+                with self.subTest(src=os.path.basename(src), unit=name):
+                    self.assertEqual(blocks - saved, set())
 
     @unittest.skipUnless(shutil.which("ftnchek")
                          or os.environ.get("REQUIRE_FTNCHEK"),
