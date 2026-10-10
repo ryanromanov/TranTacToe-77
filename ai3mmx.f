@@ -1,28 +1,65 @@
 C ======================================================================
-C     DIFFICULTY 3, MINIMAX: THE SAME FULL GAME-TREE SEARCH AS THE
-C     MODERN TICTAC.F, BUT FORTRAN 77 HAS NO RECURSION, SO THE SEARCH
-C     KEEPS ITS OWN STACK (ONE ENTRY PER PLY) AND LOOPS WITH GOTO.
+C     DIFFICULTY 3, MINIMAX: A FULL GAME-TREE SEARCH, AS IN THE MODERN
+C     TICTAC.F, BUT FORTRAN 77 HAS NO RECURSION, SO THE SEARCH KEEPS
+C     ITS OWN STACK (ONE ENTRY PER PLY) AND LOOPS WITH GOTO.  UNLIKE
+C     THE MODERN GAME IT BREAKS TIES BETWEEN EQUALLY SAFE MOVES BY
+C     SETTING THE MOST TRAPS, SO IT WINS MORE OFTEN AGAINST WEAK PLAY.
 C     LINK WITH TICTAC.F INSTEAD OF AI3RUL.F.
 C ======================================================================
       SUBROUTINE BESTMV(B, Y, Z)
       CHARACTER*1 B(3,3)
-      INTEGER Y, Z, R, C, S, BEST
+      INTEGER Y, Z, R, C, S(3,3), BEST, N, MOST
       LOGICAL FOUND
 C     TAKE AN IMMEDIATE WIN RATHER THAN ANY EQUALLY-SCORED SLOWER ONE
       CALL FNDLIN(B, 'O', Y, Z, FOUND)
       IF (FOUND) RETURN
+C     PASS 1: SCORE EVERY MOVE
       BEST = -2
       DO 20 R = 1, 3
         DO 10 C = 1, 3
           IF (B(R,C) .EQ. '_') THEN
             B(R,C) = 'O'
-            CALL SCORE(B, 'X', S)
+            CALL SCORE(B, 'X', S(R,C))
             B(R,C) = '_'
-            IF (S .GT. BEST) THEN
-              BEST = S
-              Y = R
-              Z = C
+            BEST = MAX(BEST, S(R,C))
+          END IF
+   10   CONTINUE
+   20 CONTINUE
+C     PASS 2: AMONG THE BEST-SCORED MOVES ONLY (SO PLAY STAYS PERFECT),
+C     PICK THE ONE THAT LEAVES THE USER THE MOST LOSING REPLIES
+      MOST = -1
+      DO 40 R = 1, 3
+        DO 30 C = 1, 3
+          IF (B(R,C) .EQ. '_') THEN
+            IF (S(R,C) .EQ. BEST) THEN
+              B(R,C) = 'O'
+              CALL NTRAPS(B, N)
+              B(R,C) = '_'
+              IF (N .GT. MOST) THEN
+                MOST = N
+                Y = R
+                Z = C
+              END IF
             END IF
+          END IF
+   30   CONTINUE
+   40 CONTINUE
+      END
+
+C ----------------------------------------------------------------------
+C     NTRAPS: N IS HOW MANY OF THE USER'S REPLIES LOSE BY FORCE
+C ----------------------------------------------------------------------
+      SUBROUTINE NTRAPS(B, N)
+      CHARACTER*1 B(3,3)
+      INTEGER N, R, C, S
+      N = 0
+      DO 20 R = 1, 3
+        DO 10 C = 1, 3
+          IF (B(R,C) .EQ. '_') THEN
+            B(R,C) = 'X'
+            CALL SCORE(B, 'O', S)
+            B(R,C) = '_'
+            IF (S .EQ. 1) N = N + 1
           END IF
    10   CONTINUE
    20 CONTINUE
