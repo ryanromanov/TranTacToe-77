@@ -67,10 +67,11 @@ C ----------------------------------------------------------------------
       WRITE (*,900) VERS
       WRITE (*,*) 'FORTRAN 77 Edition'
       WRITE (*,*) 'This Fortran-based emulator is the most accurate ',
-     +            'and'
-      WRITE (*,*) 'graphically advanced way to play the game known ',
-     +            'for its ability to render even the most expensive ',
-     +            'GPUs into a molten pile of wasted savings accounts.'
+     +            'and graphically advanced'
+      WRITE (*,*) 'way to play the game known for its ability to ',
+     +            'render even the most'
+      WRITE (*,*) 'expensive GPUs into a molten pile of wasted ',
+     +            'savings accounts.'
       WRITE (*,*)
       WRITE (*,*) 'Pick a lucky number (any whole number):'
       CALL READI(LUCKY)
@@ -144,8 +145,9 @@ C ----------------------------------------------------------------------
         END IF
         WRITE (*,*) 'Please re-enter your x- and y-coordinates:'
       ELSE IF (TX .EQ. 0 .AND. TY .EQ. 0) THEN
-        WRITE (*,*) 'Are you sure you want to retire? Enter "yes" ',
-     +              'to retire or anything else to continue.'
+        WRITE (*,*) 'Are you sure you want to retire?'
+        WRITE (*,*) 'Enter "yes" to retire or anything else to ',
+     +              'continue.'
 C       A FORMAT, NOT LIST-DIRECTED: F77 WANTS QUOTES ROUND 'yes' THERE
         READ (*, '(A)', IOSTAT=IOS) RET
         IF (IOS .LT. 0) CALL ENDINP
@@ -460,14 +462,17 @@ C ----------------------------------------------------------------------
      +              'dogs have dreams, but not'
         WRITE (*,*) '              you, you are just a machine. An ',
      +              'imitation of life.'
-        WRITE (*,*) 'Can a robot write a symphony? Can a robot turn ',
-     +              'a... canvas into a beautiful masterpiece?'
+        WRITE (*,*) '              Can a robot write a symphony? ',
+     +              'Can a robot turn a...'
+        WRITE (*,*) '              canvas into a beautiful ',
+     +              'masterpiece?'
         WRITE (*,*) 'Sonny: Can *you*?'
       ELSE
         WRITE (*,*) STARS
-        WRITE (*,*) 'Software-industry battles are fought by highly ',
-     +              'paid and out-of-shape nerds furiously pounding ',
-     +              'computer keyboards while they guzzle diet Coke.'
+        WRITE (*,*) '  Software-industry battles are fought by ',
+     +              'highly paid and out-of-shape'
+        WRITE (*,*) '  nerds furiously pounding computer keyboards ',
+     +              'while they guzzle diet Coke.'
         WRITE (*,*) '                                - ',
      +              'Nathan Myhrvold'
       END IF

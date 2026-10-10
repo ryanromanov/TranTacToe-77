@@ -156,6 +156,44 @@ class SourceFormat(unittest.TestCase):
                                     p.stdout)
 
 
+class Output(unittest.TestCase):
+    # Every message the game can print, each found by a phrase in it.
+    MESSAGES = [
+        "Welcome to Tic-Tac-Tran", "FORTRAN 77 Edition", "molten pile",
+        "Pick a lucky number", "choose your difficulty", "Navy Seal",
+        "Who moves first", "Fight!", "place your marker", "format \"x y\"",
+        "top-left corner", "To retire", "Are you sure you want to retire",
+        "Please enter your x- and y-coordinates",
+        "Please re-enter your x- and y-coordinates",
+        "already got an 'X' there", "where the AI has gone before",
+        "x-coordinates are wrong", "y-coordinates are wrong",
+        "please enter a whole number", "please enter two whole numbers",
+        "between 1 and 3", "Please choose 1 or 2", "No more input",
+        "Quitting program", "beaten the computer", "been beaten by",
+        "mortal man", "great frequency", "cold porridge",
+        "Can machines think", "Can *you*", "Nathan Myhrvold",
+    ]
+
+    def test_fits_80_columns(self):
+        # Period terminals were 80 columns wide; so is a default terminal.
+        inputs = [
+            "x\n7\n9\nme\n1\n3\n1\n0 0\nno\n1 1\n1 1\n4 1\n1 4\n"
+            "a b\n2 2\n",  # every prompt and input error, then end of input
+        ]
+        # Every ending, and every parting quote, across a range of seeds
+        moves = "".join(f"{r} {c}\n" for r, c in ALL_CELLS * 3)
+        for seed in range(40):
+            inputs.append(f"{seed}\n1\n1\n{moves}")
+            inputs.append(f"{seed}\n1\n1\n0 0\nyes\n")
+        with ThreadPoolExecutor() as pool:
+            outs = [p.stdout for p in pool.map(run, inputs)]
+        out = "\n".join(outs)
+        missing = [m for m in self.MESSAGES if m not in out]
+        self.assertEqual(missing, [], "messages never printed")
+        long_lines = sorted({l for l in out.splitlines() if len(l) > 80})
+        self.assertEqual(long_lines, [], "lines over 80 columns")
+
+
 class Version(unittest.TestCase):
     def test_banner_shows_version(self):
         with open(MAIN) as f:
