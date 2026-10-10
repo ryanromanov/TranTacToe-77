@@ -1,6 +1,6 @@
 # TranTacToe-77
 
-Tic-Tak-Tran, the FORTRAN 77 edition: a terminal tic-tac-toe game written in standard ANSI X3.9-1978 FORTRAN 77, with no vendor extensions. It's a port of [TranTacToe](https://github.com/ryanromanov/TranTacToe), which is written in modern Fortran.
+Tic-Tac-Tran, the FORTRAN 77 edition: a terminal tic-tac-toe game written in standard ANSI X3.9-1978 FORTRAN 77, with no vendor extensions. It's a port of [TranTacToe](https://github.com/ryanromanov/TranTacToe), which is written in modern Fortran.
 
 You play `X`; the computer plays `O`.
 

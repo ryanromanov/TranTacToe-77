@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-The FORTRAN 77 edition of Tic-Tak-Tran (a port of ryanromanov/TranTacToe), a terminal tic-tac-toe game. The human plays `X`, the computer `O`. **The code must stay standard ANSI FORTRAN 77 with no vendor extensions**; that's the point of the repo.
+The FORTRAN 77 edition of Tic-Tac-Tran (a port of ryanromanov/TranTacToe), a terminal tic-tac-toe game. The human plays `X`, the computer `O`. **The code must stay standard ANSI FORTRAN 77 with no vendor extensions**; that's the point of the repo.
 
 ## Build & test
 
