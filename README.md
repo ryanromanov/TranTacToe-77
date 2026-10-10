@@ -4,6 +4,10 @@ Tic-Tac-Tran, the FORTRAN 77 edition: a terminal tic-tac-toe game written in sta
 
 You play `X`; the computer plays `O`.
 
+<p align="center">
+  <img src="docs/terminal.svg" width="340" alt="A game of TranTacToe-77 on an amber terminal: the computer, playing O, moved first and has two in the top row, and the player is typing 1 3 to block">
+</p>
+
 ## Build & play
 
 ```sh
