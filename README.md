@@ -14,7 +14,13 @@ make test            # build with all checks and run the test suite
 
 Prebuilt Linux and macOS binaries are attached to each [release](../../releases).
 
-The game asks for input in this order: a lucky number (it seeds the random number generator), the difficulty (1–3), then your moves as `row col`. Entering `0 0` and then `yes` retires.
+The game asks for input in this order:
+1. a lucky number (it seeds the random number generator),
+2. the difficulty (1–3),
+3. who moves first (1 for you, 2 for the computer),
+4. your moves, as `row col`.
+
+Entering `0 0` and then `yes` (in any case) retires. Every line the game prints fits in 80 columns.
 
 ## Two difficulty-3 editions
 
@@ -23,9 +29,11 @@ F77 has no recursion, so the unbeatable difficulty 3 lives in its own file, whic
 | | `tictac77-rules` (`ai3rul.f`) | `tictac77-minimax` (`ai3mmx.f`) |
 |---|---|---|
 | Method | 8 classic rules: win, block, fork, block fork, centre, opposite corner, corner, side | Full game-tree search on an explicit stack |
-| Ever loses? | Never (all 457 user move sequences) | Never (all 569 user move sequences) |
-| Against a random player | 90.4% wins, 9.6% ties | 80.6% wins, 19.4% ties |
-| Moves | Its own | Same as modern TranTacToe in all 952 positions |
+| Ever loses? | Never: all 457 user move sequences when you start, all 140 when it starts | Never: all 489 when you start, all 73 when it starts |
+| Against a random player, you start | 90.4% wins, 9.6% ties | 88.0% wins, 12.0% ties |
+| Against a random player, it starts | 95.8% wins, 4.2% ties | 99.5% wins, 0.5% ties |
+| Ties between equally good moves | Fixed rule order, then row by row | Leaves you the most losing replies, then row by row |
+| Code lines | 105 | 114 |
 
 ## What differs from modern TranTacToe
 
@@ -48,4 +56,8 @@ Where standard F77 leaves things up to the compiler:
 
 ## Releasing
 
-Bump `VERS` in `tictac.f`, merge, then tag that commit: `git tag v0.3.0 && git push origin v0.3.0`. The release workflow checks that the tag matches `VERS`.
+1. Bump `VERS` in `tictac.f`.
+2. Optionally write `notes/vX.Y.Z.md`; it heads the release notes, followed by notes GitHub generates from merged PRs.
+3. Merge, then tag that commit: `git tag v1.2.0 && git push origin v1.2.0`.
+
+The release workflow checks that the tag matches `VERS`, builds both binaries for Linux and macOS, plays complete games with each, and publishes the release.

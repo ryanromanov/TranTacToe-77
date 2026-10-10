@@ -2,7 +2,8 @@
 
 Adapted from TranTacToe's tests/test_game.py. The game is built twice, once with each
 difficulty-3 AI (ai3rul.f: rule-based, ai3mmx.f: explicit-stack minimax),
-then driven over stdin: lucky number, difficulty, then moves as `row col`.
+then driven over stdin: lucky number, difficulty, who moves first (1 the
+user, 2 the computer), then moves as `row col`.
 
 Run with: python3 test_game.py   (or: make test)
 Set REQUIRE_FTNCHEK=1 to fail, not skip, when ftnchek is missing.
@@ -26,7 +27,7 @@ RANDOM_RUNS = 20  # random difficulties are re-run, each with its own seed
 SEEDS = [0, -1, 1, 2, 7, 42, 2147483646, 2147483647, -2147483647, 12345,
          99, 100, 31337, -5, 8, 9, 10, 11, 271828, 314159]
 assert len(SEEDS) == RANDOM_RUNS
-TALLY = {}  # AI name -> outcome counts from the exhaustive difficulty-3 test
+TALLY = {}  # (AI, first) -> outcome counts from the exhaustive test
 
 
 def setUpModule():
@@ -44,8 +45,9 @@ def setUpModule():
 
 def tearDownModule():
     shutil.rmtree(_tmp)
-    for name, tally in TALLY.items():
-        print(f"difficulty 3 ({name}): {tally}")
+    for (name, first), tally in sorted(TALLY.items()):
+        who = "user" if first == 1 else "computer"
+        print(f"difficulty 3 ({name}, {who} first): {tally}")
 
 
 def run(inp, ai="rules"):
@@ -59,10 +61,10 @@ def run(inp, ai="rules"):
     return p
 
 
-def play(diff, moves, extra="", seed=42, ai="rules"):
+def play(diff, moves, extra="", seed=42, ai="rules", first=1):
     """Run one game; returns (outcome, stdout). Moves are (row, col) pairs."""
-    inp = (f"{seed}\n{diff}\n" + "".join(f"{r} {c}\n" for r, c in moves)
-           + extra)
+    inp = (f"{seed}\n{diff}\n{first}\n"
+           + "".join(f"{r} {c}\n" for r, c in moves) + extra)
     p = run(inp, ai)
     if p is None:
         return "hang", ""
@@ -84,6 +86,28 @@ def last_board(out):
     return [[cell.strip() for cell in row.split("|")[1:4]] for row in rows]
 
 
+def program_units(src):
+    """Split fixed-form source into (first line, statements) per unit.
+
+    Comments are dropped and continuation lines joined, so each statement
+    is one line with its label and indentation stripped.
+    """
+    units, stmts = [], []
+    with open(src) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line.strip() or line[:1] in "cC*":
+                continue
+            if len(line) > 5 and line[5] not in " 0":
+                stmts[-1] += line[6:72].strip()
+                continue
+            stmts.append(line[6:72].strip())
+            if stmts[-1] == "END":
+                units.append((stmts[0], "\n".join(stmts)))
+                stmts = []
+    return units
+
+
 class SourceFormat(unittest.TestCase):
     def test_no_code_past_column_72(self):
         # Fixed-form Fortran silently drops anything past column 72.
@@ -101,6 +125,19 @@ class SourceFormat(unittest.TestCase):
             with open(src) as f:
                 self.assertNotIn("\t", f.read(), src)
 
+    def test_common_blocks_are_saved(self):
+        # Without SAVE, F77 lets a COMMON block become undefined on RETURN
+        # unless a unit higher in the call chain also names it. ftnchek
+        # doesn't check this, so every unit naming a block must SAVE it.
+        for src in SOURCES:
+            for name, unit in program_units(src):
+                blocks = set(re.findall(r"\bCOMMON\s*/\s*(\w+)\s*/", unit))
+                if re.search(r"^SAVE\s*$", unit, re.M):
+                    continue  # a bare SAVE saves everything
+                saved = set(re.findall(r"^SAVE\s*/\s*(\w+)\s*/", unit, re.M))
+                with self.subTest(src=os.path.basename(src), unit=name):
+                    self.assertEqual(blocks - saved, set())
+
     @unittest.skipUnless(shutil.which("ftnchek")
                          or os.environ.get("REQUIRE_FTNCHEK"),
                          "ftnchek not installed")
@@ -117,6 +154,44 @@ class SourceFormat(unittest.TestCase):
                 self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
                 self.assertNotRegex(p.stdout, r"(?i)warning|error",
                                     p.stdout)
+
+
+class Output(unittest.TestCase):
+    # Every message the game can print, each found by a phrase in it.
+    MESSAGES = [
+        "Welcome to Tic-Tac-Tran", "FORTRAN 77 Edition", "molten pile",
+        "Pick a lucky number", "choose your difficulty", "Navy Seal",
+        "Who moves first", "Fight!", "place your marker", "format \"x y\"",
+        "top-left corner", "To retire", "Are you sure you want to retire",
+        "Please enter your x- and y-coordinates",
+        "Please re-enter your x- and y-coordinates",
+        "already got an 'X' there", "where the AI has gone before",
+        "x-coordinates are wrong", "y-coordinates are wrong",
+        "please enter a whole number", "please enter two whole numbers",
+        "between 1 and 3", "Please choose 1 or 2", "No more input",
+        "Quitting program", "beaten the computer", "been beaten by",
+        "mortal man", "great frequency", "cold porridge",
+        "Can machines think", "Can *you*", "Nathan Myhrvold",
+    ]
+
+    def test_fits_80_columns(self):
+        # Period terminals were 80 columns wide; so is a default terminal.
+        inputs = [
+            "x\n7\n9\nme\n1\n3\n1\n0 0\nno\n1 1\n1 1\n4 1\n1 4\n"
+            "a b\n2 2\n",  # every prompt and input error, then end of input
+        ]
+        # Every ending, and every parting quote, across a range of seeds
+        moves = "".join(f"{r} {c}\n" for r, c in ALL_CELLS * 3)
+        for seed in range(40):
+            inputs.append(f"{seed}\n1\n1\n{moves}")
+            inputs.append(f"{seed}\n1\n1\n0 0\nyes\n")
+        with ThreadPoolExecutor() as pool:
+            outs = [p.stdout for p in pool.map(run, inputs)]
+        out = "\n".join(outs)
+        missing = [m for m in self.MESSAGES if m not in out]
+        self.assertEqual(missing, [], "messages never printed")
+        long_lines = sorted({l for l in out.splitlines() if len(l) > 80})
+        self.assertEqual(long_lines, [], "lines over 80 columns")
 
 
 class Version(unittest.TestCase):
@@ -139,17 +214,39 @@ class Input(unittest.TestCase):
         self.assertEqual(outcome, "quit")
         self.assertEqual(last_board(out)[0][0], "X")
 
+    def test_retire_answer_ignores_case(self):
+        for answer in ("YES", "Yes", "yEs"):
+            with self.subTest(answer=answer):
+                outcome, _ = play(1, RETIRE, answer + "\n")
+                self.assertEqual(outcome, "quit")
+
     def test_letters_at_seed_prompt(self):
-        p = run("lucky\n7\n1\n0 0\nyes\n")
+        p = run("lucky\n7\n1\n1\n0 0\nyes\n")
         self.assertEqual(p.stdout.count("please enter a whole number"), 1)
         self.assertIn("Quitting program", p.stdout)
         self.assertNotIn("Fortran runtime error", p.stdout + p.stderr)
 
     def test_letters_at_difficulty_prompt(self):
-        p = run("7\nabc\n1\n0 0\nyes\n")
+        p = run("7\nabc\n1\n1\n0 0\nyes\n")
         self.assertIn("please enter a whole number", p.stdout)
         self.assertIn("Quitting program", p.stdout)
         self.assertNotIn("Fortran runtime error", p.stdout + p.stderr)
+
+    def test_bad_answers_at_first_prompt(self):
+        p = run("7\n1\nme\n3\n0\n1\n0 0\nyes\n")
+        self.assertEqual(p.stdout.count("please enter a whole number"), 1)
+        self.assertEqual(p.stdout.count("Please choose 1 or 2"), 2)
+        self.assertIn("Quitting program", p.stdout)
+        self.assertEqual(last_board(p.stdout), [["_"] * 3] * 3)
+
+    def test_computer_moves_first(self):
+        for diff in (1, 2, 3):
+            with self.subTest(diff=diff):
+                outcome, out = play(diff, RETIRE, "yes\n", first=2)
+                self.assertEqual(outcome, "quit")
+                cells = sum(last_board(out), [])
+                self.assertEqual(cells.count("O"), 1)
+                self.assertEqual(cells.count("_"), 8)
 
     def test_letters_at_move_prompt(self):
         outcome, out = play(1, [], "a b\n1 x\n2 2\n0 0\nyes\n")
@@ -159,7 +256,7 @@ class Input(unittest.TestCase):
 
     def test_end_of_input_quits_cleanly(self):
         # at the seed, difficulty, move and retire prompts
-        for inp in ("", "7\n", "7\n1\n", "7\n1\n0 0\n"):
+        for inp in ("", "7\n", "7\n1\n", "7\n1\n1\n", "7\n1\n1\n0 0\n"):
             with self.subTest(inp=inp):
                 p = run(inp)
                 self.assertIn("No more input", p.stdout)
@@ -191,31 +288,36 @@ class Random(unittest.TestCase):
 
 
 class Games(unittest.TestCase):
-    def assert_finishes(self, diff, moves, extra="", allowed=None):
+    def assert_finishes(self, diff, moves, extra="", allowed=None, first=1):
         allowed = allowed or {"user_win", "computer_win", "tie", "quit"}
         with ThreadPoolExecutor() as pool:
             results = list(pool.map(
-                lambda s: play(diff, moves, extra, seed=s)[0], SEEDS
+                lambda s: play(diff, moves, extra, seed=s, first=first)[0],
+                SEEDS,
             ))
         self.assertTrue(set(results) <= allowed, results)
 
     def test_sweep_every_cell(self):
         # User tries every cell in order; occupied ones are re-prompted.
-        for diff in (1, 2, 3):
-            with self.subTest(diff=diff):
-                self.assert_finishes(diff, ALL_CELLS * 3)
+        for first in (1, 2):
+            for diff in (1, 2, 3):
+                with self.subTest(diff=diff, first=first):
+                    self.assert_finishes(diff, ALL_CELLS * 3, first=first,
+                                         allowed={"user_win",
+                                                  "computer_win", "tie"})
 
     def test_difficulty_2_corner_opening(self):
         self.assert_finishes(2, [(1, 3)] + RETIRE, "yes\n", {"quit"})
 
-    def never_loses(self, ai):
+    def never_loses(self, ai, first):
         # Difficulty 3 is deterministic, so explore every user move sequence.
         tally = {}
         frontier = [[]]
         with ThreadPoolExecutor() as pool:
             while frontier:
                 results = pool.map(
-                    lambda m: (m, play(3, m + RETIRE, "yes\n", ai=ai)),
+                    lambda m: (m, play(3, m + RETIRE, "yes\n", ai=ai,
+                                       first=first)),
                     frontier,
                 )
                 frontier = []
@@ -231,13 +333,19 @@ class Games(unittest.TestCase):
                         self.assertNotEqual(outcome, "user_win", moves)
                         self.assertIn(outcome, ("computer_win", "tie"), moves)
         self.assertTrue(tally)  # the tree was actually explored
-        TALLY[ai] = tally
+        TALLY[ai, first] = tally
 
     def test_difficulty_3_never_loses_rules(self):
-        self.never_loses("rules")
+        self.never_loses("rules", first=1)
 
     def test_difficulty_3_never_loses_minimax(self):
-        self.never_loses("minimax")
+        self.never_loses("minimax", first=1)
+
+    def test_difficulty_3_never_loses_rules_going_first(self):
+        self.never_loses("rules", first=2)
+
+    def test_difficulty_3_never_loses_minimax_going_first(self):
+        self.never_loses("minimax", first=2)
 
 
 if __name__ == "__main__":

@@ -20,24 +20,25 @@ C     THE COMPUTER IS 'O'.  VICTOR: 0 NONE, 1 USER, 2 COMPUTER, 3 TIE.
 C ======================================================================
       PROGRAM TICTAC
       CHARACTER*(*) VERS
-      PARAMETER (VERS = '1.0.0')
+      PARAMETER (VERS = '1.1.0')
       CHARACTER*1 BOARD(3,3)
       CHARACTER*3 RETIRE
-      INTEGER X, Y, VICTOR, NTURN, DIFF
+      INTEGER X, Y, VICTOR, DIFF, FIRST
       DATA BOARD /9*'_'/
       DATA RETIRE /'no '/
-      DATA VICTOR, NTURN, DIFF /0, 0, 0/
+      DATA VICTOR, DIFF, FIRST /0, 0, 0/
 
-      CALL MENU(DIFF, VERS)
+      CALL MENU(DIFF, FIRST, VERS)
+      IF (FIRST .EQ. 2) CALL SONNY(BOARD, DIFF)
    10 IF (RETIRE .EQ. 'yes' .OR. VICTOR .NE. 0) GOTO 20
         CALL PRTBRD(BOARD)
-        CALL GETPOS(X, Y, NTURN, RETIRE, BOARD)
+        CALL GETPOS(X, Y, RETIRE, BOARD)
         IF (RETIRE .NE. 'yes') THEN
           CALL MARKBD(X, Y, BOARD)
-          IF (NTURN .GE. 3) CALL VCHECK(BOARD, VICTOR)
+          CALL VCHECK(BOARD, VICTOR)
           IF (VICTOR .EQ. 0) THEN
             CALL SONNY(BOARD, DIFF)
-            IF (NTURN .GE. 3) CALL VCHECK(BOARD, VICTOR)
+            CALL VCHECK(BOARD, VICTOR)
           END IF
         END IF
         GOTO 10
@@ -57,18 +58,20 @@ C ======================================================================
       END
 
 C ----------------------------------------------------------------------
-C     MENU: BANNER, LUCKY NUMBER (THE RANDOM SEED) AND DIFFICULTY
+C     MENU: BANNER, LUCKY NUMBER (THE RANDOM SEED), DIFFICULTY AND
+C     WHO MOVES FIRST (1 THE USER, 2 THE COMPUTER)
 C ----------------------------------------------------------------------
-      SUBROUTINE MENU(DIFF, VERS)
-      INTEGER DIFF, LUCKY
+      SUBROUTINE MENU(DIFF, FIRST, VERS)
+      INTEGER DIFF, FIRST, LUCKY
       CHARACTER*(*) VERS
       WRITE (*,900) VERS
       WRITE (*,*) 'FORTRAN 77 Edition'
       WRITE (*,*) 'This Fortran-based emulator is the most accurate ',
-     +            'and'
-      WRITE (*,*) 'graphically advanced way to play the game known ',
-     +            'for its ability to render even the most expensive ',
-     +            'GPUs into a molten pile of wasted savings accounts.'
+     +            'and graphically advanced'
+      WRITE (*,*) 'way to play the game known for its ability to ',
+     +            'render even the most'
+      WRITE (*,*) 'expensive GPUs into a molten pile of wasted ',
+     +            'savings accounts.'
       WRITE (*,*)
       WRITE (*,*) 'Pick a lucky number (any whole number):'
       CALL READI(LUCKY)
@@ -82,6 +85,14 @@ C ----------------------------------------------------------------------
         CALL READI(DIFF)
         GOTO 10
    20 CONTINUE
+      WRITE (*,*) 'Who moves first? (1 being you, 2 being the ',
+     +            'computer)'
+      CALL READI(FIRST)
+   30 IF (FIRST .GE. 1 .AND. FIRST .LE. 2) GOTO 40
+        WRITE (*,*) 'Error: Please choose 1 or 2'
+        CALL READI(FIRST)
+        GOTO 30
+   40 CONTINUE
       WRITE (*,*) 'Fight!'
   900 FORMAT (' Welcome to Tic-Tac-Tran! (v', A, ')')
       END
@@ -105,10 +116,10 @@ C ----------------------------------------------------------------------
 
 C ----------------------------------------------------------------------
 C     GETPOS: READ AND VALIDATE THE USER'S MOVE (X = ROW, Y = COLUMN).
-C     ON SUCCESS NTURN IS INCREMENTED; 0 0 THEN 'yes' SETS RET.
+C     0 0 THEN 'yes' SETS RET.
 C ----------------------------------------------------------------------
-      SUBROUTINE GETPOS(X, Y, NTURN, RET, B)
-      INTEGER X, Y, NTURN, TX, TY, IOS
+      SUBROUTINE GETPOS(X, Y, RET, B)
+      INTEGER X, Y, TX, TY, IOS
       CHARACTER*3 RET
       CHARACTER*1 B(3,3)
       X = 0
@@ -126,7 +137,6 @@ C ----------------------------------------------------------------------
           IF (B(TX,TY) .EQ. '_') THEN
             X = TX
             Y = TY
-            NTURN = NTURN + 1
             RETURN
           END IF
           CALL OVRLAI(TX, TY, B)
@@ -135,11 +145,13 @@ C ----------------------------------------------------------------------
         END IF
         WRITE (*,*) 'Please re-enter your x- and y-coordinates:'
       ELSE IF (TX .EQ. 0 .AND. TY .EQ. 0) THEN
-        WRITE (*,*) 'Are you sure you want to retire? Enter "yes" ',
-     +              'to retire or anything else to continue.'
+        WRITE (*,*) 'Are you sure you want to retire?'
+        WRITE (*,*) 'Enter "yes" to retire or anything else to ',
+     +              'continue.'
 C       A FORMAT, NOT LIST-DIRECTED: F77 WANTS QUOTES ROUND 'yes' THERE
         READ (*, '(A)', IOSTAT=IOS) RET
         IF (IOS .LT. 0) CALL ENDINP
+        CALL LOWER(RET)
         IF (RET .EQ. 'yes') THEN
           CALL OAP
           RETURN
@@ -151,6 +163,22 @@ C       A FORMAT, NOT LIST-DIRECTED: F77 WANTS QUOTES ROUND 'yes' THERE
       END IF
       CALL RDPAIR(TX, TY)
       GOTO 10
+      END
+
+C ----------------------------------------------------------------------
+C     LOWER: CONVERT S TO LOWER CASE.  F77 DOES NOT PROMISE ASCII, SO
+C     LETTERS ARE LOOKED UP WITH INDEX INSTEAD OF SHIFTED WITH ICHAR.
+C ----------------------------------------------------------------------
+      SUBROUTINE LOWER(S)
+      CHARACTER*(*) S
+      CHARACTER*26 UC, LC
+      INTEGER I, K
+      PARAMETER (UC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+      PARAMETER (LC = 'abcdefghijklmnopqrstuvwxyz')
+      DO 10 I = 1, LEN(S)
+        K = INDEX(UC, S(I:I))
+        IF (K .GT. 0) S(I:I) = LC(K:K)
+   10 CONTINUE
       END
 
 C ----------------------------------------------------------------------
@@ -434,14 +462,17 @@ C ----------------------------------------------------------------------
      +              'dogs have dreams, but not'
         WRITE (*,*) '              you, you are just a machine. An ',
      +              'imitation of life.'
-        WRITE (*,*) 'Can a robot write a symphony? Can a robot turn ',
-     +              'a... canvas into a beautiful masterpiece?'
+        WRITE (*,*) '              Can a robot write a symphony? ',
+     +              'Can a robot turn a...'
+        WRITE (*,*) '              canvas into a beautiful ',
+     +              'masterpiece?'
         WRITE (*,*) 'Sonny: Can *you*?'
       ELSE
         WRITE (*,*) STARS
-        WRITE (*,*) 'Software-industry battles are fought by highly ',
-     +              'paid and out-of-shape nerds furiously pounding ',
-     +              'computer keyboards while they guzzle diet Coke.'
+        WRITE (*,*) '  Software-industry battles are fought by ',
+     +              'highly paid and out-of-shape'
+        WRITE (*,*) '  nerds furiously pounding computer keyboards ',
+     +              'while they guzzle diet Coke.'
         WRITE (*,*) '                                - ',
      +              'Nathan Myhrvold'
       END IF
