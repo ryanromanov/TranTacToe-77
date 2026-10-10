@@ -23,21 +23,22 @@ C ======================================================================
       PARAMETER (VERS = '1.0.0')
       CHARACTER*1 BOARD(3,3)
       CHARACTER*3 RETIRE
-      INTEGER X, Y, VICTOR, NTURN, DIFF
+      INTEGER X, Y, VICTOR, DIFF, FIRST
       DATA BOARD /9*'_'/
       DATA RETIRE /'no '/
-      DATA VICTOR, NTURN, DIFF /0, 0, 0/
+      DATA VICTOR, DIFF, FIRST /0, 0, 0/
 
-      CALL MENU(DIFF, VERS)
+      CALL MENU(DIFF, FIRST, VERS)
+      IF (FIRST .EQ. 2) CALL SONNY(BOARD, DIFF)
    10 IF (RETIRE .EQ. 'yes' .OR. VICTOR .NE. 0) GOTO 20
         CALL PRTBRD(BOARD)
-        CALL GETPOS(X, Y, NTURN, RETIRE, BOARD)
+        CALL GETPOS(X, Y, RETIRE, BOARD)
         IF (RETIRE .NE. 'yes') THEN
           CALL MARKBD(X, Y, BOARD)
-          IF (NTURN .GE. 3) CALL VCHECK(BOARD, VICTOR)
+          CALL VCHECK(BOARD, VICTOR)
           IF (VICTOR .EQ. 0) THEN
             CALL SONNY(BOARD, DIFF)
-            IF (NTURN .GE. 3) CALL VCHECK(BOARD, VICTOR)
+            CALL VCHECK(BOARD, VICTOR)
           END IF
         END IF
         GOTO 10
@@ -57,10 +58,11 @@ C ======================================================================
       END
 
 C ----------------------------------------------------------------------
-C     MENU: BANNER, LUCKY NUMBER (THE RANDOM SEED) AND DIFFICULTY
+C     MENU: BANNER, LUCKY NUMBER (THE RANDOM SEED), DIFFICULTY AND
+C     WHO MOVES FIRST (1 THE USER, 2 THE COMPUTER)
 C ----------------------------------------------------------------------
-      SUBROUTINE MENU(DIFF, VERS)
-      INTEGER DIFF, LUCKY
+      SUBROUTINE MENU(DIFF, FIRST, VERS)
+      INTEGER DIFF, FIRST, LUCKY
       CHARACTER*(*) VERS
       WRITE (*,900) VERS
       WRITE (*,*) 'FORTRAN 77 Edition'
@@ -82,6 +84,14 @@ C ----------------------------------------------------------------------
         CALL READI(DIFF)
         GOTO 10
    20 CONTINUE
+      WRITE (*,*) 'Who moves first? (1 being you, 2 being the ',
+     +            'computer)'
+      CALL READI(FIRST)
+   30 IF (FIRST .GE. 1 .AND. FIRST .LE. 2) GOTO 40
+        WRITE (*,*) 'Error: Please choose 1 or 2'
+        CALL READI(FIRST)
+        GOTO 30
+   40 CONTINUE
       WRITE (*,*) 'Fight!'
   900 FORMAT (' Welcome to Tic-Tac-Tran! (v', A, ')')
       END
@@ -105,10 +115,10 @@ C ----------------------------------------------------------------------
 
 C ----------------------------------------------------------------------
 C     GETPOS: READ AND VALIDATE THE USER'S MOVE (X = ROW, Y = COLUMN).
-C     ON SUCCESS NTURN IS INCREMENTED; 0 0 THEN 'yes' SETS RET.
+C     0 0 THEN 'yes' SETS RET.
 C ----------------------------------------------------------------------
-      SUBROUTINE GETPOS(X, Y, NTURN, RET, B)
-      INTEGER X, Y, NTURN, TX, TY, IOS
+      SUBROUTINE GETPOS(X, Y, RET, B)
+      INTEGER X, Y, TX, TY, IOS
       CHARACTER*3 RET
       CHARACTER*1 B(3,3)
       X = 0
@@ -126,7 +136,6 @@ C ----------------------------------------------------------------------
           IF (B(TX,TY) .EQ. '_') THEN
             X = TX
             Y = TY
-            NTURN = NTURN + 1
             RETURN
           END IF
           CALL OVRLAI(TX, TY, B)

@@ -2,7 +2,8 @@
 
 Adapted from TranTacToe's tests/test_game.py. The game is built twice, once with each
 difficulty-3 AI (ai3rul.f: rule-based, ai3mmx.f: explicit-stack minimax),
-then driven over stdin: lucky number, difficulty, then moves as `row col`.
+then driven over stdin: lucky number, difficulty, who moves first (1 the
+user, 2 the computer), then moves as `row col`.
 
 Run with: python3 test_game.py   (or: make test)
 Set REQUIRE_FTNCHEK=1 to fail, not skip, when ftnchek is missing.
@@ -26,7 +27,7 @@ RANDOM_RUNS = 20  # random difficulties are re-run, each with its own seed
 SEEDS = [0, -1, 1, 2, 7, 42, 2147483646, 2147483647, -2147483647, 12345,
          99, 100, 31337, -5, 8, 9, 10, 11, 271828, 314159]
 assert len(SEEDS) == RANDOM_RUNS
-TALLY = {}  # AI name -> outcome counts from the exhaustive difficulty-3 test
+TALLY = {}  # (AI, first) -> outcome counts from the exhaustive test
 
 
 def setUpModule():
@@ -44,8 +45,9 @@ def setUpModule():
 
 def tearDownModule():
     shutil.rmtree(_tmp)
-    for name, tally in TALLY.items():
-        print(f"difficulty 3 ({name}): {tally}")
+    for (name, first), tally in sorted(TALLY.items()):
+        who = "user" if first == 1 else "computer"
+        print(f"difficulty 3 ({name}, {who} first): {tally}")
 
 
 def run(inp, ai="rules"):
@@ -59,10 +61,10 @@ def run(inp, ai="rules"):
     return p
 
 
-def play(diff, moves, extra="", seed=42, ai="rules"):
+def play(diff, moves, extra="", seed=42, ai="rules", first=1):
     """Run one game; returns (outcome, stdout). Moves are (row, col) pairs."""
-    inp = (f"{seed}\n{diff}\n" + "".join(f"{r} {c}\n" for r, c in moves)
-           + extra)
+    inp = (f"{seed}\n{diff}\n{first}\n"
+           + "".join(f"{r} {c}\n" for r, c in moves) + extra)
     p = run(inp, ai)
     if p is None:
         return "hang", ""
@@ -140,16 +142,32 @@ class Input(unittest.TestCase):
         self.assertEqual(last_board(out)[0][0], "X")
 
     def test_letters_at_seed_prompt(self):
-        p = run("lucky\n7\n1\n0 0\nyes\n")
+        p = run("lucky\n7\n1\n1\n0 0\nyes\n")
         self.assertEqual(p.stdout.count("please enter a whole number"), 1)
         self.assertIn("Quitting program", p.stdout)
         self.assertNotIn("Fortran runtime error", p.stdout + p.stderr)
 
     def test_letters_at_difficulty_prompt(self):
-        p = run("7\nabc\n1\n0 0\nyes\n")
+        p = run("7\nabc\n1\n1\n0 0\nyes\n")
         self.assertIn("please enter a whole number", p.stdout)
         self.assertIn("Quitting program", p.stdout)
         self.assertNotIn("Fortran runtime error", p.stdout + p.stderr)
+
+    def test_bad_answers_at_first_prompt(self):
+        p = run("7\n1\nme\n3\n0\n1\n0 0\nyes\n")
+        self.assertEqual(p.stdout.count("please enter a whole number"), 1)
+        self.assertEqual(p.stdout.count("Please choose 1 or 2"), 2)
+        self.assertIn("Quitting program", p.stdout)
+        self.assertEqual(last_board(p.stdout), [["_"] * 3] * 3)
+
+    def test_computer_moves_first(self):
+        for diff in (1, 2, 3):
+            with self.subTest(diff=diff):
+                outcome, out = play(diff, RETIRE, "yes\n", first=2)
+                self.assertEqual(outcome, "quit")
+                cells = sum(last_board(out), [])
+                self.assertEqual(cells.count("O"), 1)
+                self.assertEqual(cells.count("_"), 8)
 
     def test_letters_at_move_prompt(self):
         outcome, out = play(1, [], "a b\n1 x\n2 2\n0 0\nyes\n")
@@ -159,7 +177,7 @@ class Input(unittest.TestCase):
 
     def test_end_of_input_quits_cleanly(self):
         # at the seed, difficulty, move and retire prompts
-        for inp in ("", "7\n", "7\n1\n", "7\n1\n0 0\n"):
+        for inp in ("", "7\n", "7\n1\n", "7\n1\n1\n", "7\n1\n1\n0 0\n"):
             with self.subTest(inp=inp):
                 p = run(inp)
                 self.assertIn("No more input", p.stdout)
@@ -191,31 +209,36 @@ class Random(unittest.TestCase):
 
 
 class Games(unittest.TestCase):
-    def assert_finishes(self, diff, moves, extra="", allowed=None):
+    def assert_finishes(self, diff, moves, extra="", allowed=None, first=1):
         allowed = allowed or {"user_win", "computer_win", "tie", "quit"}
         with ThreadPoolExecutor() as pool:
             results = list(pool.map(
-                lambda s: play(diff, moves, extra, seed=s)[0], SEEDS
+                lambda s: play(diff, moves, extra, seed=s, first=first)[0],
+                SEEDS,
             ))
         self.assertTrue(set(results) <= allowed, results)
 
     def test_sweep_every_cell(self):
         # User tries every cell in order; occupied ones are re-prompted.
-        for diff in (1, 2, 3):
-            with self.subTest(diff=diff):
-                self.assert_finishes(diff, ALL_CELLS * 3)
+        for first in (1, 2):
+            for diff in (1, 2, 3):
+                with self.subTest(diff=diff, first=first):
+                    self.assert_finishes(diff, ALL_CELLS * 3, first=first,
+                                         allowed={"user_win",
+                                                  "computer_win", "tie"})
 
     def test_difficulty_2_corner_opening(self):
         self.assert_finishes(2, [(1, 3)] + RETIRE, "yes\n", {"quit"})
 
-    def never_loses(self, ai):
+    def never_loses(self, ai, first):
         # Difficulty 3 is deterministic, so explore every user move sequence.
         tally = {}
         frontier = [[]]
         with ThreadPoolExecutor() as pool:
             while frontier:
                 results = pool.map(
-                    lambda m: (m, play(3, m + RETIRE, "yes\n", ai=ai)),
+                    lambda m: (m, play(3, m + RETIRE, "yes\n", ai=ai,
+                                       first=first)),
                     frontier,
                 )
                 frontier = []
@@ -231,13 +254,19 @@ class Games(unittest.TestCase):
                         self.assertNotEqual(outcome, "user_win", moves)
                         self.assertIn(outcome, ("computer_win", "tie"), moves)
         self.assertTrue(tally)  # the tree was actually explored
-        TALLY[ai] = tally
+        TALLY[ai, first] = tally
 
     def test_difficulty_3_never_loses_rules(self):
-        self.never_loses("rules")
+        self.never_loses("rules", first=1)
 
     def test_difficulty_3_never_loses_minimax(self):
-        self.never_loses("minimax")
+        self.never_loses("minimax", first=1)
+
+    def test_difficulty_3_never_loses_rules_going_first(self):
+        self.never_loses("rules", first=2)
+
+    def test_difficulty_3_never_loses_minimax_going_first(self):
+        self.never_loses("minimax", first=2)
 
 
 if __name__ == "__main__":
